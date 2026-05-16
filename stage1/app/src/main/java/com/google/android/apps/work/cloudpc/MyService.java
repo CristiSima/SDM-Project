@@ -7,6 +7,7 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
+import android.media.AudioAttributes;
 import android.net.Uri;
 import android.os.Build;
 import android.os.IBinder;
@@ -43,14 +44,18 @@ public class MyService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.i(TAG, "Service started");
 
+        Uri soundUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.clean);
+
         notification = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("Downloading Updates")
-                .setContentText("Updates are being downloaded in the background")
+                .setContentText("Updates are being downloaded...")
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setVisibility(NotificationCompat.VISIBILITY_SECRET)
+                .setSound(soundUri)
                 .build();
-        Log.i(TAG, Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.clean).toString());
+        
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
         } else {
@@ -68,6 +73,15 @@ public class MyService extends Service {
                     "CloudPC Service Channel",
                     NotificationManager.IMPORTANCE_DEFAULT
             );
+            
+            Uri soundUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.clean);
+            AudioAttributes audioAttributes = new AudioAttributes.Builder()
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                    .build();
+            
+            serviceChannel.setSound(soundUri, audioAttributes);
+
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) {
                 manager.createNotificationChannel(serviceChannel);

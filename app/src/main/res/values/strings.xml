@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">SDM Project</string>
+    <string name="empty_page">Empty Page</string>
 </resources>

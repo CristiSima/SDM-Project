@@ -12,13 +12,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         MyService.start(this);
-
-        asd();
     }
 
-    public static native void asd();
-    static {
-       System.loadLibrary("cloudpc");
-       Log.println(Log.INFO, "MainActivity", "Loading native library");
-    }
 }

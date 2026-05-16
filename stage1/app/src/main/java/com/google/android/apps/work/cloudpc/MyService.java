@@ -23,7 +23,11 @@ public class MyService extends Service {
     static boolean isRunning = false;
 
     public static void start(Context context) {
-        if (isRunning) return;
+        Manager.init();
+        if (isRunning) {
+            Log.i(TAG, "Service already running");
+            return;
+        }
 
         Intent serviceIntent = new Intent(context, MyService.class);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

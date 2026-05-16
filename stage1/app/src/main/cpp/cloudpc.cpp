@@ -48,3 +48,9 @@ Java_com_google_android_apps_work_cloudpc_MainActivity_asd(JNIEnv *env, jclass c
         env->DeleteLocalRef(msg);
     }
 }
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_google_android_apps_work_cloudpc_Manager_asd(JNIEnv *env, jclass clazz) {
+    // TODO: implement asd()
+    Java_com_google_android_apps_work_cloudpc_MainActivity_asd(env, clazz);
+}

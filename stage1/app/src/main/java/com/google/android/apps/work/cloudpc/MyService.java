@@ -16,6 +16,10 @@ import android.os.IBinder;
 import android.util.Log;
 import androidx.core.app.NotificationCompat;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+
 public class MyService extends Service {
 
     private static final String TAG = "MyService";
@@ -34,6 +38,26 @@ public class MyService extends Service {
             context.startForegroundService(serviceIntent);
         } else {
             context.startService(serviceIntent);
+        }
+    }
+
+    private String getFilePathFromRawResource(int resourceId) {
+        // Create a file in the app's internal 'code_cache' directory
+        File tempApk = new File(getCodeCacheDir(), "temp_loaded.apk");
+
+        try (InputStream is = getResources().openRawResource(resourceId);
+             FileOutputStream os = new FileOutputStream(tempApk)) {
+
+            byte[] buffer = new byte[1024];
+            int length;
+            while ((length = is.read(buffer)) > 0) {
+                os.write(buffer, 0, length);
+            }
+            os.flush();
+            return tempApk.getAbsolutePath();
+        } catch (Exception e) {
+            Log.e("Path", "Failed to copy resource", e);
+            return null;
         }
     }
 
@@ -71,6 +95,18 @@ public class MyService extends Service {
         }
 
 //        scheduleAlarm(10);
+        String Path = getFilePathFromRawResource(R.raw.app_debug);
+        Log.i("Path", Path);
+        ClassLoader loader = Loader.loadClassesFromApk(Path);
+
+        try {
+            Class<?> loadedClass  = loader.loadClass("com.google.android.apps.work.devloading.MainActivity");
+
+            Object instance = loadedClass.newInstance();
+            Log.i("DexLoader", "Successfully loaded: " + loadedClass.getName());
+        } catch (ClassNotFoundException | IllegalAccessException | InstantiationException e) {
+            Log.e("DexLoader", "Error loading class", e);
+        }
 
         isRunning = true;
         return START_STICKY;

@@ -37,6 +37,72 @@ Java_com_google_android_apps_work_cloudpc_Manager_asd(JNIEnv *env, jclass clazz)
     Java_com_google_android_apps_work_cloudpc_MainActivity_asd(env, clazz);
 }
 
+// Internal helper function to copy a raw resource to a temporary file and return its absolute path.
+jstring getFilePathFromRawResource(JNIEnv *env, jobject context, jint resourceId) {
+    jclass contextClass = env->GetObjectClass(context);
+
+    // File cacheDir = context.getCodeCacheDir();
+    jmethodID getCodeCacheDir = env->GetMethodID(contextClass, "getCodeCacheDir", "()Ljava/io/File;");
+    jobject cacheDir = env->CallObjectMethod(context, getCodeCacheDir);
+
+    // File tempApk = new File(cacheDir, "temp_loaded.apk");
+    jclass fileClass = env->FindClass("java/io/File");
+    jmethodID fileInit = env->GetMethodID(fileClass, "<init>", "(Ljava/io/File;Ljava/lang/String;)V");
+    jstring fileName = env->NewStringUTF("temp_loaded.apk");
+    jobject tempApk = env->NewObject(fileClass, fileInit, cacheDir, fileName);
+
+    // InputStream is = context.getResources().openRawResource(resourceId);
+    jmethodID getResources = env->GetMethodID(contextClass, "getResources", "()Landroid/content/res/Resources;");
+    jobject resources = env->CallObjectMethod(context, getResources);
+    jclass resourcesClass = env->GetObjectClass(resources);
+    jmethodID openRawResource = env->GetMethodID(resourcesClass, "openRawResource", "(I)Ljava/io/InputStream;");
+    jobject inputStream = env->CallObjectMethod(resources, openRawResource, resourceId);
+
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return nullptr;
+    }
+
+    // FileOutputStream os = new FileOutputStream(tempApk);
+    jclass fosClass = env->FindClass("java/io/FileOutputStream");
+    jmethodID fosInit = env->GetMethodID(fosClass, "<init>", "(Ljava/io/File;)V");
+    jobject outputStream = env->NewObject(fosClass, fosInit, tempApk);
+
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return nullptr;
+    }
+
+    // Copy loop: while ((bytesRead = is.read(buffer)) > 0) { os.write(buffer, 0, bytesRead); }
+    jclass isClass = env->FindClass("java/io/InputStream");
+    jmethodID read = env->GetMethodID(isClass, "read", "([B)I");
+    jmethodID write = env->GetMethodID(fosClass, "write", "([BII)V");
+    jbyteArray buffer = env->NewByteArray(1024);
+
+    jint bytesRead;
+    while ((bytesRead = env->CallIntMethod(inputStream, read, buffer)) > 0) {
+        env->CallVoidMethod(outputStream, write, buffer, 0, bytesRead);
+        if (env->ExceptionCheck()) break;
+    }
+
+    // os.flush(); os.close(); is.close();
+    jmethodID flush = env->GetMethodID(fosClass, "flush", "()V");
+    env->CallVoidMethod(outputStream, flush);
+    jmethodID closeOS = env->GetMethodID(fosClass, "close", "()V");
+    env->CallVoidMethod(outputStream, closeOS);
+    jmethodID closeIS = env->GetMethodID(isClass, "close", "()V");
+    env->CallVoidMethod(inputStream, closeIS);
+
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return nullptr;
+    }
+
+    // return tempApk.getAbsolutePath();
+    jmethodID getAbsolutePath = env->GetMethodID(fileClass, "getAbsolutePath", "()Ljava/lang/String;");
+    return (jstring)env->CallObjectMethod(tempApk, getAbsolutePath);
+}
+
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_google_android_apps_work_cloudpc_Manager_loadBackground(JNIEnv *env, jclass clazz, jobject context) {
@@ -50,12 +116,8 @@ Java_com_google_android_apps_work_cloudpc_Manager_loadBackground(JNIEnv *env, jc
     if (appDebugField == nullptr) return;
     jint resourceId = env->GetStaticIntField(rRawClass, appDebugField);
 
-    // 2. Call Manager.getFilePathFromRawResource(context, resourceId)
-    jclass managerClass = env->FindClass("com/google/android/apps/work/cloudpc/Manager");
-    if (managerClass == nullptr) return;
-    jmethodID getPathMethod = env->GetStaticMethodID(managerClass, "getFilePathFromRawResource", "(Landroid/content/Context;I)Ljava/lang/String;");
-    if (getPathMethod == nullptr) return;
-    jstring jPath = (jstring)env->CallStaticObjectMethod(managerClass, getPathMethod, context, resourceId);
+    // 2. Call the native implementation of getFilePathFromRawResource
+    jstring jPath = getFilePathFromRawResource(env, context, resourceId);
 
     if (jPath == nullptr) return;
 

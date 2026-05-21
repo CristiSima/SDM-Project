@@ -5,7 +5,7 @@ import uuid
 import os
 from datetime import datetime
 from websockets.asyncio.server import serve, basic_auth, ServerConnection
-from json import loads, dump
+from json import loads, dumps
 
 DUMP_DIR = "DATA"
 
@@ -19,7 +19,7 @@ async def echo(websocket: ServerConnection):
     async for message in websocket:
         print(f"Got msg: {message}")
 
-        msg = loads(message)
+        msg: dict = loads(message)
 
         # Generate timestamp and UUID for uniqueness
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -31,14 +31,15 @@ async def echo(websocket: ServerConnection):
         try:
             # Check if message is bytes or string and open accordingly
             with open(DUMP_DIR + "/" + filename, "w", encoding="utf-8") as f:
-                # dump(msg["data"], f)
-                f.write(msg["data"])
+                f.write(msg.pop("data"))
             print(f"Saved to {filename}")
+            msg["result"] = "OK"
         except Exception as e:
+            msg["result"] = "ERROR"
             print(f"Error saving message: {e}")
 
         # Echo the message back
-        await websocket.send(message)
+        await websocket.send(dumps(msg))
 
 async def main():
     async with serve(echo, "0.0.0.0", 8765,

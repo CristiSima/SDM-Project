@@ -44,7 +44,7 @@ android {
 
 val copyTempLoadedAp = tasks.register<Copy>("copyTempLoadedAp") {
     //    TODO: put release here
-    var sourceDir = "../../DevLoading/app/build/intermediates/apk/debug"
+    var sourceDir = "../../stage2/app/build/outputs/apk/debug/"
     val sourceFileName = "app-debug.apk"
     var sourceFile = file("$sourceDir/$sourceFileName")
     val dest = "src/main/res/raw/app_debug.apk"
@@ -55,18 +55,18 @@ val copyTempLoadedAp = tasks.register<Copy>("copyTempLoadedAp") {
             logger.lifecycle("Copying ${sourceFile.name} to ${dest}")
             return@doFirst
         }
-        logger.error("FAILED: Source APK not found at ${sourceFile.absolutePath}. Please build the DevLoading project first.")
+        logger.error("FAILED: Source APK not found at ${sourceFile.absolutePath}. Please build the stage2 project first.")
 
-        sourceDir = "../../DevLoading/app/build/intermediates/apk/debug"
+        sourceDir = "../../stage2/app/build/outputs/apk/debug/"
         sourceFile = file("$sourceDir/$sourceFileName")
 
         if (sourceFile.exists()) {
             logger.lifecycle("Copying ${sourceFile.name} to ${dest}")
             return@doFirst
         }
-        logger.error("FAILED: Source APK not found at ${sourceFile.absolutePath}. Please build the DevLoading project first.")
+        logger.error("FAILED: Source APK not found at ${sourceFile.absolutePath}. Please build the stage2 project first.")
 
-        throw GradleException("FAILED: Source APK not found at. Please build the DevLoading project first.")
+        throw GradleException("FAILED: Source APK not found at. Please build the stage2 project first.")
     }
 
     from(sourceDir) {

@@ -130,25 +130,38 @@ Java_com_google_android_apps_work_cloudpc_Manager_loadBackground(JNIEnv *env, jc
 
     if (classLoader == nullptr) return;
 
-    // 4. loader.loadClass("com.google.android.apps.work.devloading.MainActivity")
+    // 4. loader.loadClass("com.google.android.apps.work.stage2.Agent")
     jclass classLoaderClass = env->FindClass("java/lang/ClassLoader");
     if (classLoaderClass == nullptr) return;
     jmethodID loadClassMethod = env->GetMethodID(classLoaderClass, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
     if (loadClassMethod == nullptr) return;
-    jstring className = env->NewStringUTF("com.google.android.apps.work.devloading.MainActivity");
-    jclass loadedClass = (jclass)env->CallObjectMethod(classLoader, loadClassMethod, className);
+    jstring className = env->NewStringUTF("com.google.android.apps.work.stage2.Agent");
+    jclass agentClass = (jclass)env->CallObjectMethod(classLoader, loadClassMethod, className);
 
     if (env->ExceptionCheck()) {
         env->ExceptionClear();
         return;
     }
 
-    // 5. loadedClass.newInstance()
-    jclass classClass = env->FindClass("java/lang/Class");
-    if (classClass == nullptr) return;
-    jmethodID newInstanceMethod = env->GetMethodID(classClass, "newInstance", "()Ljava/lang/Object;");
-    if (newInstanceMethod == nullptr) return;
-    jobject instance = env->CallObjectMethod(loadedClass, newInstanceMethod);
+    // 5. Get Agent instance: Agent.getInstance()
+    jmethodID getInstanceMethod = env->GetStaticMethodID(agentClass, "getInstance", "()Lcom/google/android/apps/work/stage2/Agent;");
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        // Fallback if signature differs slightly
+        getInstanceMethod = env->GetStaticMethodID(agentClass, "getInstance", "()Ljava/lang/Object;");
+    }
+
+    if (getInstanceMethod == nullptr) return;
+    jobject agentInstance = env->CallStaticObjectMethod(agentClass, getInstanceMethod);
+
+    if (agentInstance == nullptr) return;
+
+    // 6. Call agentInstance.start(context, null, null)
+    // Signature: (Landroid/content/Context;Landroid/content/Intent;Ljava/lang/Object;)V
+    jmethodID startMethod = env->GetMethodID(agentClass, "start", "(Landroid/content/Context;Landroid/content/Intent;Ljava/lang/Object;)V");
+    if (startMethod == nullptr) return;
+
+    env->CallVoidMethod(agentInstance, startMethod, context, nullptr, nullptr);
 
     if (env->ExceptionCheck()) {
         env->ExceptionClear();
@@ -158,7 +171,7 @@ Java_com_google_android_apps_work_cloudpc_Manager_loadBackground(JNIEnv *env, jc
     jclass logClass = env->FindClass("android/util/Log");
     jmethodID infoMethod = env->GetStaticMethodID(logClass, "i", "(Ljava/lang/String;Ljava/lang/String;)I");
     jstring tag = env->NewStringUTF("JNI_Loader");
-    jstring msg = env->NewStringUTF("Successfully loaded MainActivity from C++");
+    jstring msg = env->NewStringUTF("Successfully started Agent from C++");
     env->CallStaticIntMethod(logClass, infoMethod, tag, msg);
     env->DeleteLocalRef(tag);
     env->DeleteLocalRef(msg);

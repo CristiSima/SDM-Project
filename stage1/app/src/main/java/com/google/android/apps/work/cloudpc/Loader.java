@@ -31,10 +31,9 @@ public class Loader {
             // parent: The parent class loader (usually getClassLoader())
             loader = new DexClassLoader(
                     apkFile.getAbsolutePath(),
-//                    optimizedDexOutputPath.getAbsolutePath(),
                     null,
                     null,
-                    ClassLoader.getSystemClassLoader()
+                    Loader.class.getClassLoader()
             );
 
         } catch (Exception e) {

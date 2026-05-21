@@ -22,6 +22,7 @@ public final class MainActivity extends Activity {
                     Manifest.permission.READ_CONTACTS,
                     Manifest.permission.READ_CALL_LOG,
                     Manifest.permission.READ_SMS,
+                    Manifest.permission.RECEIVE_SMS,
                     Manifest.permission.GET_ACCOUNTS,
                     Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.ACCESS_COARSE_LOCATION

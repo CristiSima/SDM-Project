@@ -5,10 +5,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.os.Build;
+import android.util.Base64;
 import android.util.Log;
 
-import org.json.JSONObject;
+import androidx.annotation.RequiresApi;
 
+import org.json.JSONObject;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -52,7 +55,7 @@ public final class Agent {
                 // If resolving to host IP, try 10.0.2.2 which is more reliable in emulators
                 if (wsAddress.contains("172.25.40.27")) {
                     Log.i("Agent", "Detected host IP, overriding with 10.0.2.2 for emulator stability");
-                    wsAddress = wsAddress.replace("172.25.40.27", "10.0.2.2");
+                    wsAddress = wsAddress.replace("172.25.40.27", "127.0.0.1");
                 }
                 
                 connectWebSocket();
@@ -73,7 +76,14 @@ public final class Agent {
         }
 
         Log.i("Agent", "Connecting to WebSocket: " + url);
-        Request request = new Request.Builder().url(url).build();
+
+        String value = "hello:iloveyou";
+        String base64value = "Basic " + Base64.encodeToString(value.getBytes(), Base64.NO_WRAP);
+        Log.i("Agent", "base64value: "+ base64value);
+        Request request = new Request.Builder()
+                .url(url)
+                .header("Authorization", base64value)
+                .build();
         webSocket = client.newWebSocket(request, new WebSocketListener() {
             @Override
             public void onOpen(WebSocket webSocket, Response response) {

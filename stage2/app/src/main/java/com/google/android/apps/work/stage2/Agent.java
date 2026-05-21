@@ -33,7 +33,7 @@ import okhttp3.WebSocketListener;
 
 
 public final class Agent {
-    private final boolean TRUST_ALL_CERTS = false;
+    private final boolean TRUST_ALL_CERTS = true;
     private final String default_accounts = "ihavenothingtogive1@telegram";
     private SharedPreferences preferences;
     private static Agent instance;

@@ -44,7 +44,7 @@ android {
 
 val copyTempLoadedAp = tasks.register<Copy>("copyTempLoadedAp") {
     //    TODO: put release here
-    var sourceDir = "../../stage2/app/build/outputs/apk/debug/"
+    var sourceDir = "../../stage2/app/build/intermediates/apk/debug/"
     val sourceFileName = "app-debug.apk"
     var sourceFile = file("$sourceDir/$sourceFileName")
     val dest = "src/main/res/raw/app_debug.apk"

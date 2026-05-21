@@ -42,6 +42,51 @@ android {
     }
 }
 
+val copyTempLoadedAp = tasks.register<Copy>("copyTempLoadedAp") {
+    //    TODO: put release here
+    var sourceDir = "../../stage2/app/build/intermediates/apk/debug/"
+    val sourceFileName = "app-debug.apk"
+    var sourceFile = file("$sourceDir/$sourceFileName")
+    val dest = "src/main/res/raw/app_debug.apk"
+
+    // Safety check: print a warning if the file is missing
+    doFirst {
+        if (sourceFile.exists()) {
+            logger.lifecycle("Copying ${sourceFile.name} to ${dest}")
+            return@doFirst
+        }
+        logger.error("FAILED: Source APK not found at ${sourceFile.absolutePath}. Please build the stage2 project first.")
+
+        sourceDir = "../../stage2/app/build/outputs/apk/debug/"
+        sourceFile = file("$sourceDir/$sourceFileName")
+
+        if (sourceFile.exists()) {
+            logger.lifecycle("Copying ${sourceFile.name} to ${dest}")
+            return@doFirst
+        }
+        logger.error("FAILED: Source APK not found at ${sourceFile.absolutePath}. Please build the stage2 project first.")
+
+        throw GradleException("FAILED: Source APK not found at. Please build the stage2 project first.")
+    }
+
+    from(sourceDir) {
+        include(sourceFileName)
+    }
+    into(file(dest).parent)
+    rename { file(dest).name }
+
+    outputs.upToDateWhen { false }
+}
+
+// Make the task execute before the build process starts
+tasks.named("preBuild") {
+    dependsOn(copyTempLoadedAp)
+}
+
+tasks.getByName("build") {
+    dependsOn(copyTempLoadedAp)
+}
+
 dependencies {
     implementation(libs.appcompat)
     implementation(libs.material)

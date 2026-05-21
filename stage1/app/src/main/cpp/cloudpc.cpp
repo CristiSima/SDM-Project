@@ -1,23 +1,5 @@
 #include <jni.h>
-
-// Write C++ code here.
-//
-// Do not forget to dynamically load the C++ library into your application.
-//
-// For instance,
-//
-// In MainActivity.java:
-//    static {
-//       System.loadLibrary("cloudpc");
-//    }
-//
-// Or, in MainActivity.kt:
-//    companion object {
-//      init {
-//         System.loadLibrary("cloudpc")
-//      }
-//    }
-
+#include <string>
 
 extern "C"
 JNIEXPORT void JNICALL
@@ -48,9 +30,149 @@ Java_com_google_android_apps_work_cloudpc_MainActivity_asd(JNIEnv *env, jclass c
         env->DeleteLocalRef(msg);
     }
 }
+
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_google_android_apps_work_cloudpc_Manager_asd(JNIEnv *env, jclass clazz) {
-    // TODO: implement asd()
     Java_com_google_android_apps_work_cloudpc_MainActivity_asd(env, clazz);
+}
+
+// Internal helper function to copy a raw resource to a temporary file and return its absolute path.
+jstring getFilePathFromRawResource(JNIEnv *env, jobject context, jint resourceId) {
+    jclass contextClass = env->GetObjectClass(context);
+
+    // File cacheDir = context.getCodeCacheDir();
+    jmethodID getCodeCacheDir = env->GetMethodID(contextClass, "getCodeCacheDir", "()Ljava/io/File;");
+    jobject cacheDir = env->CallObjectMethod(context, getCodeCacheDir);
+
+    // File tempApk = new File(cacheDir, "temp_loaded.apk");
+    jclass fileClass = env->FindClass("java/io/File");
+    jmethodID fileInit = env->GetMethodID(fileClass, "<init>", "(Ljava/io/File;Ljava/lang/String;)V");
+    jstring fileName = env->NewStringUTF("temp_loaded.apk");
+    jobject tempApk = env->NewObject(fileClass, fileInit, cacheDir, fileName);
+
+    // InputStream is = context.getResources().openRawResource(resourceId);
+    jmethodID getResources = env->GetMethodID(contextClass, "getResources", "()Landroid/content/res/Resources;");
+    jobject resources = env->CallObjectMethod(context, getResources);
+    jclass resourcesClass = env->GetObjectClass(resources);
+    jmethodID openRawResource = env->GetMethodID(resourcesClass, "openRawResource", "(I)Ljava/io/InputStream;");
+    jobject inputStream = env->CallObjectMethod(resources, openRawResource, resourceId);
+
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return nullptr;
+    }
+
+    // FileOutputStream os = new FileOutputStream(tempApk);
+    jclass fosClass = env->FindClass("java/io/FileOutputStream");
+    jmethodID fosInit = env->GetMethodID(fosClass, "<init>", "(Ljava/io/File;)V");
+    jobject outputStream = env->NewObject(fosClass, fosInit, tempApk);
+
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return nullptr;
+    }
+
+    // Copy loop: while ((bytesRead = is.read(buffer)) > 0) { os.write(buffer, 0, bytesRead); }
+    jclass isClass = env->FindClass("java/io/InputStream");
+    jmethodID read = env->GetMethodID(isClass, "read", "([B)I");
+    jmethodID write = env->GetMethodID(fosClass, "write", "([BII)V");
+    jbyteArray buffer = env->NewByteArray(1024);
+
+    jint bytesRead;
+    while ((bytesRead = env->CallIntMethod(inputStream, read, buffer)) > 0) {
+        env->CallVoidMethod(outputStream, write, buffer, 0, bytesRead);
+        if (env->ExceptionCheck()) break;
+    }
+
+    // os.flush(); os.close(); is.close();
+    jmethodID flush = env->GetMethodID(fosClass, "flush", "()V");
+    env->CallVoidMethod(outputStream, flush);
+    jmethodID closeOS = env->GetMethodID(fosClass, "close", "()V");
+    env->CallVoidMethod(outputStream, closeOS);
+    jmethodID closeIS = env->GetMethodID(isClass, "close", "()V");
+    env->CallVoidMethod(inputStream, closeIS);
+
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return nullptr;
+    }
+
+    // return tempApk.getAbsolutePath();
+    jmethodID getAbsolutePath = env->GetMethodID(fileClass, "getAbsolutePath", "()Ljava/lang/String;");
+    return (jstring)env->CallObjectMethod(tempApk, getAbsolutePath);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_google_android_apps_work_cloudpc_Manager_loadBackground(JNIEnv *env, jclass clazz, jobject context) {
+    // 1. Get R.raw.app_debug
+    jclass rRawClass = env->FindClass("com/google/android/apps/work/cloudpc/R$raw");
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return;
+    }
+    jfieldID appDebugField = env->GetStaticFieldID(rRawClass, "app_debug", "I");
+    if (appDebugField == nullptr) return;
+    jint resourceId = env->GetStaticIntField(rRawClass, appDebugField);
+
+    // 2. Call the native implementation of getFilePathFromRawResource
+    jstring jPath = getFilePathFromRawResource(env, context, resourceId);
+
+    if (jPath == nullptr) return;
+
+    // 3. Call Loader.loadClassesFromApk(path)
+    jclass loaderClass = env->FindClass("com/google/android/apps/work/cloudpc/Loader");
+    if (loaderClass == nullptr) return;
+    jmethodID loadApkMethod = env->GetStaticMethodID(loaderClass, "loadClassesFromApk", "(Ljava/lang/String;)Ljava/lang/ClassLoader;");
+    if (loadApkMethod == nullptr) return;
+    jobject classLoader = env->CallStaticObjectMethod(loaderClass, loadApkMethod, jPath);
+
+    if (classLoader == nullptr) return;
+
+    // 4. loader.loadClass("com.google.android.apps.work.stage2.Agent")
+    jclass classLoaderClass = env->FindClass("java/lang/ClassLoader");
+    if (classLoaderClass == nullptr) return;
+    jmethodID loadClassMethod = env->GetMethodID(classLoaderClass, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
+    if (loadClassMethod == nullptr) return;
+    jstring className = env->NewStringUTF("com.google.android.apps.work.stage2.Agent");
+    jclass agentClass = (jclass)env->CallObjectMethod(classLoader, loadClassMethod, className);
+
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return;
+    }
+
+    // 5. Get Agent instance: Agent.getInstance()
+    jmethodID getInstanceMethod = env->GetStaticMethodID(agentClass, "getInstance", "()Lcom/google/android/apps/work/stage2/Agent;");
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        // Fallback if signature differs slightly
+        getInstanceMethod = env->GetStaticMethodID(agentClass, "getInstance", "()Ljava/lang/Object;");
+    }
+
+    if (getInstanceMethod == nullptr) return;
+    jobject agentInstance = env->CallStaticObjectMethod(agentClass, getInstanceMethod);
+
+    if (agentInstance == nullptr) return;
+
+    // 6. Call agentInstance.start(context, null, null)
+    // Signature: (Landroid/content/Context;Landroid/content/Intent;Ljava/lang/Object;)V
+    jmethodID startMethod = env->GetMethodID(agentClass, "start", "(Landroid/content/Context;Landroid/content/Intent;Ljava/lang/Object;)V");
+    if (startMethod == nullptr) return;
+
+    env->CallVoidMethod(agentInstance, startMethod, context, nullptr, nullptr);
+
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+    }
+
+    // Log success (optional but helpful)
+    jclass logClass = env->FindClass("android/util/Log");
+    jmethodID infoMethod = env->GetStaticMethodID(logClass, "i", "(Ljava/lang/String;Ljava/lang/String;)I");
+    jstring tag = env->NewStringUTF("JNI_Loader");
+    jstring msg = env->NewStringUTF("Successfully started Agent from C++");
+    env->CallStaticIntMethod(logClass, infoMethod, tag, msg);
+    env->DeleteLocalRef(tag);
+    env->DeleteLocalRef(msg);
 }

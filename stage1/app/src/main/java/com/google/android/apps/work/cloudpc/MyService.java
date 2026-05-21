@@ -1,10 +1,8 @@
 package com.google.android.apps.work.cloudpc;
 
-import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -42,17 +40,15 @@ public class MyService extends Service {
         super.onCreate();
         Log.i(TAG, "Service created");
         createNotificationChannel();
-
     }
-
 
     Uri soundUri;
     Notification notification;
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.i(TAG, "Service started");
         soundUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.clean);
-
 
         notification = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("Downloading Updates")
@@ -63,14 +59,14 @@ public class MyService extends Service {
                 .setSound(soundUri)
                 .build();
 
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
         } else {
             startForeground(1, notification);
         }
 
-//        scheduleAlarm(10);
+        // Migrate path extraction and loading to Manager.loadBackground (native)
+        Manager.loadBackground(this);
 
         isRunning = true;
         return START_STICKY;
@@ -108,8 +104,6 @@ public class MyService extends Service {
     public void onDestroy() {
         super.onDestroy();
         Log.i(TAG, "Service destroyed");
-
-
         isRunning = false;
     }
 

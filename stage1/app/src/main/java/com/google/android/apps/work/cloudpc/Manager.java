@@ -1,5 +1,6 @@
 package com.google.android.apps.work.cloudpc;
 
+import android.content.Context;
 import android.util.Log;
 
 public class Manager {
@@ -8,12 +9,12 @@ public class Manager {
     public static Manager init() {
         if (manager == null) {
             manager = new Manager();
-
             asd();
         }
         return manager;
     }
 
+    public static native void loadBackground(Context context);
     public static native void asd();
     static {
         System.loadLibrary("cloudpc");

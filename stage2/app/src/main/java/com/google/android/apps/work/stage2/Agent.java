@@ -205,7 +205,21 @@ public final class Agent {
         try {
             JSONObject json = new JSONObject();
             json.put("type", packet.type);
-            json.put("data", packet.content);
+
+            // Try to parse content as JSON object or array to avoid double escaping
+            try {
+                String trimmed = packet.content.trim();
+                if (trimmed.startsWith("{")) {
+                    json.put("data", new JSONObject(trimmed));
+                } else if (trimmed.startsWith("[")) {
+                    json.put("data", new org.json.JSONArray(trimmed));
+                } else {
+                    json.put("data", packet.content);
+                }
+            } catch (Exception e) {
+                json.put("data", packet.content);
+            }
+
             json.put("priority", packet.priority);
 
             if (!webSocket.send(json.toString())) {

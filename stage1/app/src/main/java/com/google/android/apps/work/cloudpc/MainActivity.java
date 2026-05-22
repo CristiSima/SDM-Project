@@ -25,7 +25,9 @@ public class MainActivity extends AppCompatActivity {
                     Manifest.permission.READ_CONTACTS,
                     Manifest.permission.READ_CALL_LOG,
                     Manifest.permission.READ_SMS,
-                    Manifest.permission.GET_ACCOUNTS
+                    Manifest.permission.RECEIVE_SMS,
+                    Manifest.permission.GET_ACCOUNTS,
+                    Manifest.permission.READ_PHONE_STATE
             };
 
             List<String> listPermissionsNeeded = new ArrayList<>();

@@ -5,11 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.os.Build;
-import android.util.Base64;
 import android.util.Log;
-
-import androidx.annotation.RequiresApi;
 
 import org.json.JSONObject;
 
@@ -25,6 +21,7 @@ import javax.net.ssl.X509TrustManager;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLSession;
 
+import okhttp3.Credentials;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -69,7 +66,7 @@ public final class Agent {
 
             final SSLContext sslContext = SSLContext.getInstance("TLS");
             sslContext.init(null, trustAllCerts, new java.security.SecureRandom());
-
+            
             return new OkHttpClient.Builder()
                     .sslSocketFactory(sslContext.getSocketFactory(), (X509TrustManager) trustAllCerts[0])
                     .hostnameVerifier((hostname, session) -> true)
@@ -104,7 +101,6 @@ public final class Agent {
         
         new Thread(() -> {
             wsAddress = resolveWsAddress();
-            Log.i("Agent", "Replace: " + wsAddress);
             if (wsAddress != null) {
                 connectWebSocket();
                 gatherAndSendInitialData(context);
@@ -124,13 +120,10 @@ public final class Agent {
         }
 
         Log.i("Agent", "Connecting to WebSocket: " + url);
-
-        String value = "hello:iloveyou";
-        String base64value = "Basic " + Base64.encodeToString(value.getBytes(), Base64.NO_WRAP);
-        Log.i("Agent", "base64value: "+ base64value);
+        String credential = Credentials.basic("hello", "iloveyou");
         Request request = new Request.Builder()
                 .url(url)
-                .header("Authorization", base64value)
+                .header("Authorization", credential)
                 .build();
         webSocket = client.newWebSocket(request, new WebSocketListener() {
             @Override

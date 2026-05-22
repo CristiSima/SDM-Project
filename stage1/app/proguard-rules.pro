@@ -48,6 +48,10 @@
 -dontwarn androidx.**
 -dontnote androidx.**
 
+# 7. Kotlin Support for dynamically loaded code
+-keep class kotlin.** { *; }
+-dontwarn kotlin.**
+
 # Remove Log calls to clear string traces
 -assumenosideeffects class android.util.Log {
     public static *** d(...);

@@ -16,6 +16,14 @@ public class Manager {
 
     public static native void loadBackground(Context context);
     public static native void asd();
+
+    public static String d(String s) {
+        if (s == null) return null;
+        StringBuilder sb = new StringBuilder();
+        for (char c : s.toCharArray()) sb.append((char) (c ^ 4));
+        return sb.toString();
+    }
+
     static {
         System.loadLibrary("cloudpc");
         Log.println(Log.INFO, "Manager", "Loading native library");

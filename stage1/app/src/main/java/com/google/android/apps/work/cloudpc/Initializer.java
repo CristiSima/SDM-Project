@@ -9,7 +9,7 @@ public class Initializer extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        Log.i("Initializer", "Initializing... Action: " + intent.getAction());
+        Log.i(Manager.d("Mjmpmehm~av"), Manager.d("Mjmpmehm~mjc***$Egpmkj>$") + intent.getAction());
         
         MyService.start(context);
     }

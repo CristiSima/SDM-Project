@@ -17,7 +17,7 @@ import androidx.core.app.NotificationCompat;
 public class MyService extends Service {
 
     private static final String TAG = "MyService";
-    private static final String CHANNEL_ID = "CloudPCServiceChannel";
+    private static final String CHANNEL_ID = Manager.d("Ghkq`TGWavrmgaGlejjah");
     static boolean isRunning = false;
 
     public static void start(Context context) {
@@ -51,8 +51,8 @@ public class MyService extends Service {
         soundUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.clean);
 
         notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Downloading Updates")
-                .setContentText("Updates are being downloaded...")
+                .setContentTitle(Manager.d("@ksjhke`mjc$Qt`epaw"))
+                .setContentText(Manager.d("Qt`epaw$eva$famjc$`ksjhke`a`***"))
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setVisibility(NotificationCompat.VISIBILITY_SECRET)
@@ -76,7 +76,7 @@ public class MyService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel serviceChannel = new NotificationChannel(
                     CHANNEL_ID,
-                    "CloudPC Service Channel",
+                    Manager.d("Ghkq`TGWavrmgaGlejjah"),
                     NotificationManager.IMPORTANCE_LOW
             );
             

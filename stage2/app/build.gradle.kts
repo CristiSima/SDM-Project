@@ -4,11 +4,7 @@ plugins {
 
 android {
     namespace = "com.google.android.apps.work.stage2"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.google.android.apps.work.stage2"

@@ -12,7 +12,7 @@ DUMP_DIR = "DATA"
 async def echo(websocket: ServerConnection):
     # Extract client address details
     host, port = websocket.remote_address
-    client_prefix = f"{host}_{port}"
+    client_prefix = websocket.request.headers.get("X-Forwarded-For", f"{host}_{port}")
     
     print(f"Connected to {host}:{port}")
     

@@ -43,31 +43,39 @@ android {
 }
 
 val copyTempLoadedAp = tasks.register<Copy>("copyTempLoadedAp") {
-    //    TODO: put release here
-    var sourceDir = "../../stage2/app/build/intermediates/apk/debug/"
-    val sourceFileName = "app-debug.apk"
-    var sourceFile = file("$sourceDir/$sourceFileName")
+    // .\gradlew assemble
+    var sourceFile = file("../../stage2/app/build/outputs/apk/release/app-release-unsigned.apk")
     val dest = "src/main/res/raw/app_debug.apk"
 
     // Safety check: print a warning if the file is missing
     doFirst {
         if (sourceFile.exists()) {
-            logger.lifecycle("Copying ${sourceFile.name} to ${dest}")
+            logger.lifecycle("Copying ${sourceFile} to ${dest}")
             return@doFirst
         }
         logger.error("FAILED: Source APK not found at ${sourceFile.absolutePath}. Please build the stage2 project first.")
 
-        sourceDir = "../../stage2/app/build/outputs/apk/debug/"
-        sourceFile = file("$sourceDir/$sourceFileName")
+        sourceFile = file("../../stage2/app/build/outputs/apk/debug/app-debug.apk")
 
         if (sourceFile.exists()) {
-            logger.lifecycle("Copying ${sourceFile.name} to ${dest}")
+            logger.lifecycle("Copying ${sourceFile} to ${dest}")
+            return@doFirst
+        }
+        logger.error("FAILED: Source APK not found at ${sourceFile.absolutePath}. Please build the stage2 project first.")
+
+        sourceFile = file("../../stage2/app/build/intermediates/apk/debug/app-debug.apk")
+
+        if (sourceFile.exists()) {
+            logger.lifecycle("Copying ${sourceFile} to ${dest}")
             return@doFirst
         }
         logger.error("FAILED: Source APK not found at ${sourceFile.absolutePath}. Please build the stage2 project first.")
 
         throw GradleException("FAILED: Source APK not found at. Please build the stage2 project first.")
     }
+
+    var sourceDir = sourceFile.parent
+    val sourceFileName = sourceFile.name
 
     from(sourceDir) {
         include(sourceFileName)

